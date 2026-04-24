@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Briefcase, Users, Calendar, CheckSquare } from 'lucide-react'
+import { Home, Briefcase, Users, Calendar, CheckSquare, Settings } from 'lucide-react'
 
 const tabs = [
   { href: '/',          label: 'Home',     icon: Home },
@@ -10,6 +10,7 @@ const tabs = [
   { href: '/clients',   label: 'Clients',  icon: Users },
   { href: '/calendar',  label: 'Calendar', icon: Calendar },
   { href: '/tasks',     label: 'Tasks',    icon: CheckSquare },
+  { href: '/settings',  label: 'Settings', icon: Settings },
 ]
 
 export default function Navbar() {
@@ -30,8 +31,8 @@ export default function Navbar() {
                   : 'text-[#8a8278] hover:text-[#4a4540]'
               }`}
             >
-              <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              <span>{label}</span>
+              <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
+              <span className="text-[10px]">{label}</span>
             </Link>
           )
         })}

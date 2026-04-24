@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getFirmId } from '@/lib/auth'
 import { format, parseISO, isPast } from 'date-fns'
 import { AlertCircle, ChevronRight } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
@@ -9,10 +10,12 @@ export const revalidate = 0
 
 export default async function FeesPage() {
   const db = createServerClient()
+  const firmId = await getFirmId()
 
   const { data: fees } = await db
     .from('fees')
     .select('*, case:cases(id, case_name, case_number, status)')
+    .eq('firm_id', firmId)
     .order('expected_by', { ascending: true, nullsFirst: false })
 
   const pendingFees = (fees ?? []).filter(
@@ -28,7 +31,6 @@ export default async function FeesPage() {
     <div className="space-y-5">
       <h1 className="page-header">Pending Fees</h1>
 
-      {/* Summary */}
       <div className="card p-4 bg-[#d9a57b] border-0">
         <p className="text-sm font-semibold text-white/80">Total Outstanding</p>
         <p className="text-3xl font-bold text-white mt-1">

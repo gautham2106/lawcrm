@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
-import { Plus, Users, ChevronRight, Phone, Mail } from 'lucide-react'
+import { getFirmId } from '@/lib/auth'
+import { Plus, Users, ChevronRight, Phone } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { Client } from '@/lib/types'
 
@@ -12,9 +13,10 @@ export default async function ClientsPage({
   searchParams: { q?: string }
 }) {
   const db = createServerClient()
+  const firmId = await getFirmId()
   const { q } = searchParams
 
-  let query = db.from('clients').select('*, cases:cases(id)').order('name')
+  let query = db.from('clients').select('*, cases:cases(id)').eq('firm_id', firmId).order('name')
   if (q) query = query.ilike('name', `%${q}%`)
 
   const { data: clients } = await query
