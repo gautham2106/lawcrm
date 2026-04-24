@@ -5,7 +5,8 @@ import { Plus, CheckSquare } from 'lucide-react'
 import { PriorityBadge } from '@/components/ui/Badge'
 import EmptyState from '@/components/ui/EmptyState'
 import TaskToggle from './TaskToggle'
-import { Task, Case } from '@/lib/types'
+import AssignSelect from '@/components/ui/AssignSelect'
+import { Task, Case, Advocate } from '@/lib/types'
 
 export const revalidate = 0
 
@@ -17,16 +18,23 @@ export default async function TasksPage({
   const db = createServerClient()
   const filter = searchParams.filter ?? 'pending'
 
-  let query = db
-    .from('tasks')
-    .select('*, case:cases(id, case_name, case_number)')
-    .order('due_date', { ascending: true, nullsFirst: false })
-    .order('created_at', { ascending: false })
+  const [tasksResult, advocatesResult] = await Promise.all([
+    (() => {
+      let query = db
+        .from('tasks')
+        .select('*, case:cases(id, case_name, case_number), assigned_advocate:advocates!assigned_to(id, name)')
+        .order('due_date', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false })
 
-  if (filter === 'pending') query = query.eq('done', false)
-  if (filter === 'done') query = query.eq('done', true)
+      if (filter === 'pending') query = query.eq('done', false)
+      if (filter === 'done') query = query.eq('done', true)
+      return query
+    })(),
+    db.from('advocates').select('id, name').order('name'),
+  ])
 
-  const { data: tasks } = await query
+  const tasks = tasksResult.data
+  const advocates = (advocatesResult.data ?? []) as Pick<Advocate, 'id' | 'name'>[]
 
   return (
     <div className="space-y-5">
@@ -64,7 +72,7 @@ export default async function TasksPage({
         />
       ) : (
         <div className="card divide-y divide-[#d6cdbc]">
-          {(tasks as (Task & { case: Case | null })[]).map((t) => {
+          {(tasks as (Task & { case: Case | null; assigned_advocate: Pick<Advocate, 'id' | 'name'> | null })[]).map((t) => {
             const overdue = !t.done && t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date))
             return (
               <div key={t.id} className="p-4 flex items-start gap-3">
@@ -85,6 +93,14 @@ export default async function TasksPage({
                         {overdue ? 'Overdue · ' : ''}
                         Due {isToday(parseISO(t.due_date)) ? 'Today' : format(parseISO(t.due_date), 'dd MMM')}
                       </span>
+                    )}
+                    {advocates.length > 0 && (
+                      <AssignSelect
+                        table="tasks"
+                        recordId={t.id}
+                        currentAssignedTo={t.assigned_to}
+                        advocates={advocates}
+                      />
                     )}
                   </div>
                 </div>

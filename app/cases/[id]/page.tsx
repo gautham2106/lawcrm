@@ -7,7 +7,8 @@ import {
   User, Phone, ChevronRight, Edit, AlertCircle
 } from 'lucide-react'
 import { StatusBadge, PriorityBadge } from '@/components/ui/Badge'
-import { Case, Hearing, Task, Fee, Transaction } from '@/lib/types'
+import AssignSelect from '@/components/ui/AssignSelect'
+import { Case, Hearing, Task, Fee, Transaction, Advocate } from '@/lib/types'
 
 export const revalidate = 0
 
@@ -20,17 +21,20 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
     { data: tasks },
     { data: fees },
     { data: transactions },
+    { data: advocates },
   ] = await Promise.all([
-    db.from('cases').select('*, client:clients(*)').eq('id', params.id).single(),
+    db.from('cases').select('*, client:clients(*), assigned_advocate:advocates!assigned_to(id, name)').eq('id', params.id).single(),
     db.from('hearings').select('*').eq('case_id', params.id).order('date'),
-    db.from('tasks').select('*').eq('case_id', params.id).order('created_at', { ascending: false }),
+    db.from('tasks').select('*, assigned_advocate:advocates!assigned_to(id, name)').eq('case_id', params.id).order('created_at', { ascending: false }),
     db.from('fees').select('*').eq('case_id', params.id),
     db.from('transactions').select('*').eq('case_id', params.id).order('date', { ascending: false }),
+    db.from('advocates').select('id, name').order('name'),
   ])
 
   if (!caseData) notFound()
 
-  const c = caseData as Case & { client: any }
+  const c = caseData as Case & { client: any; assigned_advocate: Pick<Advocate, 'id' | 'name'> | null }
+  const advocateList = (advocates ?? []) as Pick<Advocate, 'id' | 'name'>[]
   const fee = fees?.[0] as Fee | undefined
   const pendingAmount = fee ? Math.max(0, fee.agreed_amount - fee.paid_amount) : 0
 
@@ -69,6 +73,20 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
             <span className="font-medium text-[#1a1814]">{format(parseISO(c.filing_date), 'dd MMM yyyy')}</span>
           </div>
         )}
+        {/* Advocate assignment */}
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-[#8a8278]">Advocate</span>
+          {advocateList.length > 0 ? (
+            <AssignSelect
+              table="cases"
+              recordId={c.id}
+              currentAssignedTo={c.assigned_to}
+              advocates={advocateList}
+            />
+          ) : (
+            <span className="text-xs text-[#8a8278]">No advocates added</span>
+          )}
+        </div>
         {c.description && (
           <p className="text-sm text-[#4a4540] pt-1 border-t border-[#d6cdbc]">{c.description}</p>
         )}
@@ -181,14 +199,22 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
         </div>
         {tasks?.length ? (
           <div className="divide-y divide-[#d6cdbc]">
-            {(tasks as Task[]).map((t) => (
+            {(tasks as (Task & { assigned_advocate: Pick<Advocate, 'id' | 'name'> | null })[]).map((t) => (
               <div key={t.id} className="py-3 first:pt-0 last:pb-0 flex items-start gap-3">
                 <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 mt-0.5 ${t.done ? 'bg-emerald-500 border-emerald-500' : 'border-[#d6cdbc]'}`} />
                 <div className="flex-1">
                   <p className={`text-sm font-medium ${t.done ? 'line-through text-[#8a8278]' : 'text-[#1a1814]'}`}>{t.title}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <PriorityBadge priority={t.priority} />
                     {t.due_date && <span className="text-xs text-[#8a8278]">Due {format(parseISO(t.due_date), 'dd MMM')}</span>}
+                    {advocateList.length > 0 && (
+                      <AssignSelect
+                        table="tasks"
+                        recordId={t.id}
+                        currentAssignedTo={t.assigned_to}
+                        advocates={advocateList}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

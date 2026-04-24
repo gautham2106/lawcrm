@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { ArrowLeft } from 'lucide-react'
+import { Advocate } from '@/lib/types'
 
 export default function NewTaskPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [advocates, setAdvocates] = useState<Pick<Advocate, 'id' | 'name'>[]>([])
+
+  useEffect(() => {
+    supabase.from('advocates').select('id, name').order('name').then(({ data }) => {
+      if (data) setAdvocates(data)
+    })
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -22,6 +30,7 @@ export default function NewTaskPage() {
       description: form.get('description') as string || null,
       due_date: form.get('due_date') as string || null,
       priority: form.get('priority') as string,
+      assigned_to: form.get('assigned_to') as string || null,
     })
 
     if (err) { setError(err.message); setLoading(false); return }
@@ -59,6 +68,17 @@ export default function NewTaskPage() {
               <option value="low">Low</option>
             </select>
           </div>
+          {advocates.length > 0 && (
+            <div>
+              <label className="label">Assign To</label>
+              <select name="assigned_to" className="input" defaultValue="">
+                <option value="">Unassigned</option>
+                {advocates.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}

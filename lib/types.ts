@@ -2,6 +2,16 @@ export type CaseStatus = 'active' | 'closed' | 'pending' | 'won' | 'lost'
 export type TaskPriority = 'low' | 'medium' | 'high'
 export type TransactionType = 'payment' | 'fee' | 'expense' | 'refund'
 export type NotificationType = 'info' | 'hearing' | 'payment' | 'task' | 'alert'
+export type AdvocateRole = 'senior_advocate' | 'advocate' | 'junior' | 'paralegal'
+
+export interface Advocate {
+  id: string
+  name: string
+  email: string
+  role: AdvocateRole
+  phone: string | null
+  created_at: string
+}
 
 export interface Client {
   id: string
@@ -19,6 +29,7 @@ export interface Case {
   case_number: string
   case_name: string
   client_id: string | null
+  assigned_to: string | null
   status: CaseStatus
   court: string | null
   judge: string | null
@@ -31,6 +42,7 @@ export interface Case {
   hearings?: Hearing[]
   tasks?: Task[]
   fees?: Fee[]
+  assigned_advocate?: Advocate | null
 }
 
 export interface Hearing {
@@ -54,10 +66,12 @@ export interface Task {
   done: boolean
   due_date: string | null
   priority: TaskPriority
+  assigned_to: string | null
   created_at: string
   updated_at: string
   // joined
   case?: Case
+  assigned_advocate?: Advocate | null
 }
 
 export interface Fee {

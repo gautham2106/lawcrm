@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { ArrowLeft } from 'lucide-react'
+import { Advocate } from '@/lib/types'
 
 export default function NewCasePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [advocates, setAdvocates] = useState<Pick<Advocate, 'id' | 'name'>[]>([])
+
+  useEffect(() => {
+    supabase.from('advocates').select('id, name').order('name').then(({ data }) => {
+      if (data) setAdvocates(data)
+    })
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -25,6 +33,7 @@ export default function NewCasePage() {
       judge: form.get('judge') as string || null,
       filing_date: form.get('filing_date') as string || null,
       description: form.get('description') as string || null,
+      assigned_to: form.get('assigned_to') as string || null,
     }
 
     const { data: created, error: err } = await supabase
@@ -105,6 +114,18 @@ export default function NewCasePage() {
             <label className="label">Description</label>
             <textarea name="description" className="input min-h-[80px] resize-none" placeholder="Brief description of the case..." />
           </div>
+
+          {advocates.length > 0 && (
+            <div>
+              <label className="label">Assign Advocate</label>
+              <select name="assigned_to" className="input" defaultValue="">
+                <option value="">Unassigned</option>
+                {advocates.map((a) => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         <div className="card p-4 space-y-4">

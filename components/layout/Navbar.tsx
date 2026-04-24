@@ -2,14 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Briefcase, Users, Calendar, CheckSquare } from 'lucide-react'
+import { Home, Briefcase, Users, Calendar, CheckSquare, UserCog } from 'lucide-react'
 
 const tabs = [
-  { href: '/',          label: 'Home',     icon: Home },
-  { href: '/cases',     label: 'Cases',    icon: Briefcase },
-  { href: '/clients',   label: 'Clients',  icon: Users },
-  { href: '/calendar',  label: 'Calendar', icon: Calendar },
-  { href: '/tasks',     label: 'Tasks',    icon: CheckSquare },
+  { href: '/',           label: 'Home',     icon: Home },
+  { href: '/cases',      label: 'Cases',    icon: Briefcase },
+  { href: '/clients',    label: 'Clients',  icon: Users },
+  { href: '/tasks',      label: 'Tasks',    icon: CheckSquare },
+  { href: '/advocates',  label: 'Team',     icon: UserCog },
 ]
 
 export default function Navbar() {
