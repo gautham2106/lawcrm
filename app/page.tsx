@@ -33,34 +33,34 @@ export default async function DashboardPage() {
     taskQuery = taskQuery.eq('advocate_name', profile.advocate_name)
   }
 
-  const queries: Promise<any>[] = [
-    caseQuery,
-    db.from('hearings').select('*, case:cases(id, case_name, case_number)').eq('date', today).order('time'),
-    taskQuery,
-    db.from('notifications').select('id').eq('is_read', false),
-    db.from('hearings')
-      .select('*, case:cases(id, case_name, case_number)')
-      .gte('date', today)
-      .order('date')
-      .order('time')
-      .limit(5),
-  ]
+  const queries = [
+  caseQuery,
+  db.from('hearings').select('*, case:cases(id, case_name, case_number)').eq('date', today).order('time'),
+  taskQuery,
+  db.from('notifications').select('id').eq('is_read', false),
+  db.from('hearings')
+    .select('*, case:cases(id, case_name, case_number)')
+    .gte('date', today)
+    .order('date')
+    .order('time')
+    .limit(5),
+] as const
 
-  if (isAdmin) {
-    queries.push(
-      db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0)
-    )
-  }
+const adminQuery = isAdmin
+  ? db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0)
+  : null
 
-  const results = await Promise.all(queries)
   const [
-    { data: cases },
-    { data: todayHearings },
-    { data: pendingTasks },
-    { data: unreadNotifications },
-    { data: upcomingHearings },
-  ] = results
-  const pendingFees = isAdmin ? (results[5]?.data ?? []) : []
+  { data: cases },
+  { data: todayHearings },
+  { data: pendingTasks },
+  { data: unreadNotifications },
+  { data: upcomingHearings },
+] = await Promise.all(queries)
+
+const pendingFees = isAdmin && adminQuery
+  ? (await adminQuery).data ?? []
+  : []
 
   const pendingFeesTotal = (pendingFees as Fee[]).reduce(
     (sum, f) => sum + Math.max(0, f.agreed_amount - f.paid_amount),
