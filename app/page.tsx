@@ -41,7 +41,7 @@ export default async function DashboardPage() {
   ])
 
   const pendingFeesTotal = (pendingFees ?? []).reduce(
-    (sum: number, f: Fee) => sum + Math.max(0, f.agreed_amount - f.paid_amount),
+    (sum: number, f) => sum + Math.max(0, f.agreed_amount - f.paid_amount),
     0
   )
   const hasPendingFees = pendingFeesTotal > 0
