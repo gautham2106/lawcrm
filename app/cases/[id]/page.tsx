@@ -4,11 +4,12 @@ import { createServerClient } from '@/lib/supabase'
 import { getUserProfile } from '@/lib/auth'
 import { format, parseISO } from 'date-fns'
 import {
-  ArrowLeft, Plus, Calendar, CheckSquare, DollarSign,
-  User, Phone, ChevronRight, FileText, MessageSquare,
-  Paperclip, Tag, BookOpen, Mail, MapPin
+  ArrowLeft, Plus, Calendar, User, Phone,
+  ChevronRight, FileText, MessageSquare,
+  Paperclip, Tag, BookOpen, Mail, Edit, Trash2
 } from 'lucide-react'
 import { StatusBadge, PriorityBadge } from '@/components/ui/Badge'
+import DeleteButton from './DeleteButton'
 import { Case, Hearing, Task, Fee, Transaction, CaseNote, CaseDocument } from '@/lib/types'
 
 export const revalidate = 0
@@ -60,13 +61,14 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusBadge status={c.status} />
-          {c.stage && (
-            <span className="badge bg-[#eee8da] text-[#4a4540] text-[10px]">{c.stage}</span>
-          )}
+          {c.stage && <span className="badge bg-[#eee8da] text-[#4a4540] text-[10px]">{c.stage}</span>}
+          <Link href={`/cases/${params.id}/edit`} className="w-8 h-8 rounded-lg bg-[#eee8da] flex items-center justify-center hover:bg-[#d6cdbc] transition-colors">
+            <Edit size={14} className="text-[#4a4540]" />
+          </Link>
         </div>
       </div>
 
-      {/* Case Info Card */}
+      {/* Case Info */}
       <div className="card p-4 space-y-3">
         <h2 className="section-title">Case Details</h2>
         {c.advocate_name && (
@@ -106,7 +108,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
         )}
       </div>
 
-      {/* Client Card */}
+      {/* Client */}
       {c.client && (
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -136,7 +138,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
         </div>
       )}
 
-      {/* Fees Summary — admin only */}
+      {/* Fees — admin only */}
       {isAdmin && (
         <div className="card p-4">
           <div className="flex items-center justify-between mb-3">
@@ -161,21 +163,16 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
                   <span className="font-semibold text-red-600">₹{pendingAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
-              <div className="mt-2">
-                <div className="h-2 bg-[#eee8da] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (fee.paid_amount / fee.agreed_amount) * 100)}%` }}
-                  />
-                </div>
-                <p className="text-xs text-[#8a8278] mt-1">
-                  {Math.round((fee.paid_amount / fee.agreed_amount) * 100)}% received
-                  {fee.expected_by && ` · Due ${format(parseISO(fee.expected_by), 'dd MMM yyyy')}`}
-                </p>
+              <div className="h-2 bg-[#eee8da] rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (fee.paid_amount / fee.agreed_amount) * 100)}%` }} />
               </div>
+              <p className="text-xs text-[#8a8278]">
+                {Math.round((fee.paid_amount / fee.agreed_amount) * 100)}% received
+                {fee.expected_by && ` · Due ${format(parseISO(fee.expected_by), 'dd MMM yyyy')}`}
+              </p>
             </div>
           ) : (
-            <p className="text-sm text-[#8a8278]">No fee agreement recorded</p>
+            <p className="text-sm text-[#8a8278]">No fee agreement — <Link href={`/cases/${params.id}/edit`} className="text-[#d9a57b]">add via edit</Link></p>
           )}
         </div>
       )}
@@ -192,15 +189,18 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
           <div className="divide-y divide-[#d6cdbc]">
             {(hearings as Hearing[]).map((h) => (
               <div key={h.id} className="py-3 first:pt-0 last:pb-0 flex items-center gap-3">
-                <div className="w-10 text-center">
+                <div className="w-10 text-center flex-shrink-0">
                   <p className="text-[10px] font-bold text-[#d9a57b]">{format(parseISO(h.date), 'MMM').toUpperCase()}</p>
                   <p className="text-lg font-bold text-[#1a1814] leading-none">{format(parseISO(h.date), 'd')}</p>
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="font-medium text-sm text-[#1a1814]">{h.purpose ?? 'Hearing'}</p>
-                  <p className="text-xs text-[#8a8278]">{h.time ? `${h.time}` : 'Time TBD'}{h.court ? ` · ${h.court}` : ''}</p>
-                  {h.notes && <p className="text-xs text-[#8a8278] mt-0.5 italic">{h.notes}</p>}
+                  <p className="text-xs text-[#8a8278]">{h.time ?? 'Time TBD'}{h.court ? ` · ${h.court}` : ''}</p>
+                  {h.notes && <p className="text-xs text-[#8a8278] italic mt-0.5">{h.notes}</p>}
                 </div>
+                <Link href={`/cases/${params.id}/hearing/${h.id}/edit`} className="w-7 h-7 rounded-lg bg-[#eee8da] flex items-center justify-center hover:bg-[#d6cdbc] flex-shrink-0">
+                  <Edit size={12} className="text-[#4a4540]" />
+                </Link>
               </div>
             ))}
           </div>
@@ -225,15 +225,11 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className={`text-sm font-medium ${t.done ? 'line-through text-[#8a8278]' : 'text-[#1a1814]'}`}>{t.title}</p>
-                    {t.task_type === 'meeting' && (
-                      <span className="badge bg-blue-50 text-blue-600 text-[10px]">Meeting</span>
-                    )}
+                    {t.task_type === 'meeting' && <span className="badge bg-blue-50 text-blue-600 text-[10px]">Meeting</span>}
                   </div>
-                  {t.task_type === 'meeting' && (t.meeting_location || t.meeting_with) && (
+                  {t.task_type === 'meeting' && (t.meeting_with || t.meeting_location) && (
                     <p className="text-xs text-[#8a8278] mt-0.5">
-                      {t.meeting_with && `With: ${t.meeting_with}`}
-                      {t.meeting_with && t.meeting_location && ' · '}
-                      {t.meeting_location && t.meeting_location}
+                      {t.meeting_with}{t.meeting_with && t.meeting_location && ' · '}{t.meeting_location}
                     </p>
                   )}
                   <div className="flex items-center gap-2 mt-1">
@@ -242,6 +238,9 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
                     {t.advocate_name && <span className="text-xs text-[#8a8278]">· {t.advocate_name}</span>}
                   </div>
                 </div>
+                <Link href={`/tasks/${t.id}/edit`} className="w-7 h-7 rounded-lg bg-[#eee8da] flex items-center justify-center hover:bg-[#d6cdbc] flex-shrink-0">
+                  <Edit size={12} className="text-[#4a4540]" />
+                </Link>
               </div>
             ))}
           </div>
@@ -262,14 +261,13 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
           <div className="divide-y divide-[#d6cdbc]">
             {(caseNotes as CaseNote[]).map((n) => (
               <div key={n.id} className="py-3 first:pt-0 last:pb-0">
-                <p className="text-sm text-[#1a1814] whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 text-sm text-[#1a1814] whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                  <DeleteButton table="case_notes" id={n.id} redirectTo={`/cases/${params.id}`} />
+                </div>
                 <div className="flex items-center gap-2 mt-1.5">
-                  {n.author_name && (
-                    <span className="text-xs text-[#d9a57b] font-medium">{n.author_name}</span>
-                  )}
-                  <span className="text-xs text-[#8a8278]">
-                    {format(parseISO(n.created_at), 'dd MMM yyyy, HH:mm')}
-                  </span>
+                  {n.author_name && <span className="text-xs text-[#d9a57b] font-medium">{n.author_name}</span>}
+                  <span className="text-xs text-[#8a8278]">{format(parseISO(n.created_at), 'dd MMM yyyy, HH:mm')}</span>
                 </div>
               </div>
             ))}
@@ -277,7 +275,7 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
         ) : (
           <div className="flex flex-col items-center gap-2 py-4 text-center">
             <MessageSquare size={24} className="text-[#d6cdbc]" />
-            <p className="text-sm text-[#8a8278]">No case notes yet. Add strategy notes, client instructions, or call summaries.</p>
+            <p className="text-sm text-[#8a8278]">No case notes yet.</p>
           </div>
         )}
       </div>
@@ -314,43 +312,25 @@ export default async function CaseDetailPage({ params }: { params: { id: string 
                         </span>
                       )}
                     </div>
-                    {doc.notes && (
-                      <p className="text-xs text-[#8a8278] mt-0.5 italic">{doc.notes}</p>
-                    )}
-                    <p className="text-xs text-[#8a8278] mt-0.5">
-                      {format(parseISO(doc.created_at), 'dd MMM yyyy')}
-                      {doc.file_size && ` · ${(doc.file_size / 1024).toFixed(0)} KB`}
-                    </p>
-
-                    {/* Page Annotations */}
+                    {doc.notes && <p className="text-xs text-[#8a8278] mt-0.5 italic">{doc.notes}</p>}
+                    <p className="text-xs text-[#8a8278] mt-0.5">{format(parseISO(doc.created_at), 'dd MMM yyyy')}</p>
                     {doc.annotations && doc.annotations.length > 0 && (
                       <div className="mt-2 space-y-1">
                         {doc.annotations.map((ann) => (
-                          <a
-                            key={ann.id}
-                            href={doc.url ? `${doc.url}#page=${ann.page_number}` : '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-start gap-2 text-xs text-[#4a4540] hover:text-[#d9a57b] group"
-                          >
-                            <span className="flex-shrink-0 font-semibold text-[#d9a57b] group-hover:underline">
-                              p.{ann.page_number}
-                            </span>
+                          <a key={ann.id} href={doc.url ? `${doc.url}#page=${ann.page_number}` : '#'}
+                            target="_blank" rel="noopener noreferrer"
+                            className="flex items-start gap-2 text-xs text-[#4a4540] hover:text-[#d9a57b] group">
+                            <span className="flex-shrink-0 font-semibold text-[#d9a57b] group-hover:underline">p.{ann.page_number}</span>
                             <span>{ann.note}</span>
                           </a>
                         ))}
                       </div>
                     )}
-
-                    {doc.url && (
-                      <Link
-                        href={`/cases/${params.id}/document/${doc.id}`}
-                        className="text-xs text-[#d9a57b] font-medium mt-1 inline-flex items-center gap-1"
-                      >
-                        <BookOpen size={10} /> Add annotations
-                      </Link>
-                    )}
+                    <Link href={`/cases/${params.id}/document/${doc.id}`} className="text-xs text-[#d9a57b] font-medium mt-1 inline-flex items-center gap-1">
+                      <BookOpen size={10} /> Annotations
+                    </Link>
                   </div>
+                  <DeleteButton table="case_documents" id={doc.id} redirectTo={`/cases/${params.id}`} />
                 </div>
               </div>
             ))}

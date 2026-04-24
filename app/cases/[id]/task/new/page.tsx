@@ -1,15 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { getClientFirmId } from '@/lib/firm'
 import { ArrowLeft } from 'lucide-react'
 
 export default function NewTaskPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [firmId, setFirmId] = useState<string | null>(null)
+  const [advocates, setAdvocates] = useState<string[]>([])
+
+  useEffect(() => {
+    async function load() {
+      const fid = await getClientFirmId()
+      setFirmId(fid)
+      const { data } = await supabase
+        .from('firm_settings')
+        .select('value')
+        .eq('key', 'advocates')
+        .eq('firm_id', fid)
+        .single()
+      if (data?.value) setAdvocates(data.value as string[])
+    }
+    load()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -18,15 +36,18 @@ export default function NewTaskPage({ params }: { params: { id: string } }) {
 
     const form = new FormData(e.currentTarget)
     const { error: err } = await supabase.from('tasks').insert({
+      firm_id: firmId,
       case_id: params.id,
       title: form.get('title') as string,
       description: form.get('description') as string || null,
       due_date: form.get('due_date') as string || null,
       priority: form.get('priority') as string,
+      advocate_name: form.get('advocate_name') as string || null,
     })
 
     if (err) { setError(err.message); setLoading(false); return }
     router.push(`/cases/${params.id}`)
+    router.refresh()
   }
 
   return (
@@ -60,6 +81,20 @@ export default function NewTaskPage({ params }: { params: { id: string } }) {
               <option value="low">Low</option>
             </select>
           </div>
+          {advocates.length > 0 ? (
+            <div>
+              <label className="label">Assigned To</label>
+              <select name="advocate_name" className="input" defaultValue="">
+                <option value="">— Unassigned —</option>
+                {advocates.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="label">Assigned To</label>
+              <input name="advocate_name" className="input" placeholder="e.g. Adv. Rajan Kumar" />
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}

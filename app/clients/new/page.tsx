@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { getClientFirmId } from '@/lib/firm'
 import { ArrowLeft } from 'lucide-react'
 
 export default function NewClientPage() {
@@ -16,10 +17,12 @@ export default function NewClientPage() {
     setLoading(true)
     setError('')
 
+    const firmId = await getClientFirmId()
     const form = new FormData(e.currentTarget)
     const { data: client, error: err } = await supabase
       .from('clients')
       .insert({
+        firm_id: firmId,
         name: form.get('name') as string,
         phone: form.get('phone') as string || null,
         email: form.get('email') as string || null,

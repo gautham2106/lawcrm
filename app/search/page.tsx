@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getFirmId } from '@/lib/auth'
 import { Search, Briefcase, Users, ChevronRight } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Case, Client } from '@/lib/types'
@@ -12,6 +13,7 @@ export default async function SearchPage({
   searchParams: { q?: string }
 }) {
   const db = createServerClient()
+  const firmId = await getFirmId()
   const q = searchParams.q?.trim()
 
   let cases: Case[] = []
@@ -22,11 +24,13 @@ export default async function SearchPage({
       db
         .from('cases')
         .select('*, client:clients(name)')
+        .eq('firm_id', firmId)
         .or(`case_name.ilike.%${q}%,case_number.ilike.%${q}%,court.ilike.%${q}%`)
         .limit(10),
       db
         .from('clients')
         .select('*')
+        .eq('firm_id', firmId)
         .or(`name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`)
         .limit(10),
     ])

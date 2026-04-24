@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getFirmId } from '@/lib/auth'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { Bell, Calendar, DollarSign, CheckSquare, AlertCircle, Info, ChevronRight } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
@@ -26,10 +27,12 @@ const typeColors = {
 
 export default async function NotificationsPage() {
   const db = createServerClient()
+  const firmId = await getFirmId()
 
   const { data: notifications } = await db
     .from('notifications')
     .select('*, case:cases(id, case_name)')
+    .eq('firm_id', firmId)
     .order('created_at', { ascending: false })
 
   const unreadCount = (notifications ?? []).filter((n) => !n.is_read).length

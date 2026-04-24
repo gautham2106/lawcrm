@@ -41,10 +41,19 @@ export async function getUserProfile(): Promise<Profile | null> {
   return data as Profile | null
 }
 
+export async function getFirmId(): Promise<string | null> {
+  const profile = await getUserProfile()
+  return profile?.firm_id ?? null
+}
+
 export function isAdmin(profile: Profile | null): boolean {
   return profile?.role === 'admin'
 }
 
 export function isStaff(profile: Profile | null): boolean {
   return profile?.role === 'staff'
+}
+
+export function isSuperAdmin(profile: Profile | null): boolean {
+  return profile?.is_super_admin === true
 }

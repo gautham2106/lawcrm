@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getFirmId } from '@/lib/auth'
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, getDay } from 'date-fns'
 import { Calendar as CalendarIcon, ChevronRight } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
@@ -13,6 +14,7 @@ export default async function CalendarPage({
   searchParams: { month?: string }
 }) {
   const db = createServerClient()
+  const firmId = await getFirmId()
 
   const now = new Date()
   const monthParam = searchParams.month
@@ -23,6 +25,7 @@ export default async function CalendarPage({
   const { data: hearings } = await db
     .from('hearings')
     .select('*, case:cases(id, case_name, case_number)')
+    .eq('firm_id', firmId)
     .gte('date', monthStart.toISOString().split('T')[0])
     .lte('date', monthEnd.toISOString().split('T')[0])
     .order('date')
@@ -46,32 +49,22 @@ export default async function CalendarPage({
         <h1 className="page-header">Calendar</h1>
       </div>
 
-      {/* Month Navigation */}
       <div className="flex items-center justify-between">
-        <Link
-          href={`/calendar?month=${format(prevMonth, 'yyyy-MM')}`}
-          className="btn-secondary px-3 py-2 text-xs"
-        >
+        <Link href={`/calendar?month=${format(prevMonth, 'yyyy-MM')}`} className="btn-secondary px-3 py-2 text-xs">
           ← {format(prevMonth, 'MMM')}
         </Link>
         <h2 className="font-bold text-[#1a1814]">{format(viewDate, 'MMMM yyyy')}</h2>
-        <Link
-          href={`/calendar?month=${format(nextMonth, 'yyyy-MM')}`}
-          className="btn-secondary px-3 py-2 text-xs"
-        >
+        <Link href={`/calendar?month=${format(nextMonth, 'yyyy-MM')}`} className="btn-secondary px-3 py-2 text-xs">
           {format(nextMonth, 'MMM')} →
         </Link>
       </div>
 
-      {/* Calendar Grid */}
       <div className="card p-3">
-        {/* Day headers */}
         <div className="grid grid-cols-7 mb-1">
           {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
             <div key={d} className="text-center text-xs font-semibold text-[#8a8278] py-1">{d}</div>
           ))}
         </div>
-        {/* Day cells */}
         <div className="grid grid-cols-7 gap-0.5">
           {Array.from({ length: startDayOfWeek }).map((_, i) => (
             <div key={`empty-${i}`} />
@@ -98,7 +91,6 @@ export default async function CalendarPage({
         </div>
       </div>
 
-      {/* Hearings this month */}
       <section>
         <h2 className="section-title mb-3">
           Hearings in {format(viewDate, 'MMMM')} ({hearings?.length ?? 0})

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { getClientFirmId } from '@/lib/firm'
 import { ArrowLeft } from 'lucide-react'
 
 export default function NewTaskPage() {
@@ -11,17 +12,22 @@ export default function NewTaskPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [taskType, setTaskType] = useState<'task' | 'meeting'>('task')
+  const [firmId, setFirmId] = useState<string | null>(null)
   const [advocates, setAdvocates] = useState<string[]>([])
 
   useEffect(() => {
-    supabase
-      .from('firm_settings')
-      .select('value')
-      .eq('key', 'advocates')
-      .single()
-      .then(({ data }) => {
-        if (data?.value) setAdvocates(data.value as string[])
-      })
+    async function load() {
+      const fid = await getClientFirmId()
+      setFirmId(fid)
+      const { data } = await supabase
+        .from('firm_settings')
+        .select('value')
+        .eq('key', 'advocates')
+        .eq('firm_id', fid)
+        .single()
+      if (data?.value) setAdvocates(data.value as string[])
+    }
+    load()
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -31,6 +37,7 @@ export default function NewTaskPage() {
 
     const form = new FormData(e.currentTarget)
     const { error: err } = await supabase.from('tasks').insert({
+      firm_id: firmId,
       title: form.get('title') as string,
       description: form.get('description') as string || null,
       due_date: form.get('due_date') as string || null,
@@ -57,8 +64,6 @@ export default function NewTaskPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="card p-4 space-y-4">
-
-          {/* Task Type Toggle */}
           <div>
             <label className="label">Task Type</label>
             <div className="flex gap-2">
@@ -94,24 +99,15 @@ export default function NewTaskPage() {
             <textarea name="description" className="input min-h-[80px] resize-none" placeholder="Details..." />
           </div>
 
-          {/* Meeting-specific fields */}
           {taskType === 'meeting' && (
             <>
               <div>
                 <label className="label">With Whom</label>
-                <input
-                  name="meeting_with"
-                  className="input"
-                  placeholder="e.g. Client / Opposite Counsel / Court Staff"
-                />
+                <input name="meeting_with" className="input" placeholder="e.g. Client / Opposite Counsel" />
               </div>
               <div>
                 <label className="label">Location</label>
-                <input
-                  name="meeting_location"
-                  className="input"
-                  placeholder="e.g. Office / Court Room 3 / Video call"
-                />
+                <input name="meeting_location" className="input" placeholder="e.g. Office / Court Room 3 / Video call" />
               </div>
             </>
           )}
@@ -130,15 +126,12 @@ export default function NewTaskPage() {
             </select>
           </div>
 
-          {/* Advocate assignment */}
           {advocates.length > 0 ? (
             <div>
               <label className="label">Assigned To</label>
               <select name="advocate_name" className="input" defaultValue="">
                 <option value="">— Unassigned —</option>
-                {advocates.map((a) => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
+                {advocates.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
           ) : (

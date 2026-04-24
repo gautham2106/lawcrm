@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized — admin only' }, { status: 403 })
   }
 
-  const { email, role, advocate_name } = await request.json()
+  const { email, role, advocate_name, firm_id } = await request.json()
 
   if (!email) {
     return NextResponse.json({ error: 'Email is required' }, { status: 400 })
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
     data: {
       role: role ?? 'staff',
       advocate_name: advocate_name ?? null,
+      firm_id: firm_id ?? profile.firm_id,
     },
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? ''}/auth/callback`,
   })

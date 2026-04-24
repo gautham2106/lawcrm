@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createServerClient } from '@/lib/supabase'
 import { format, parseISO } from 'date-fns'
-import { ArrowLeft, Phone, Mail, MapPin, Briefcase, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, MapPin, Briefcase, ChevronRight, Edit } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Client, Case } from '@/lib/types'
 
@@ -17,7 +17,6 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
   ])
 
   if (!client) notFound()
-
   const c = client as Client
 
   return (
@@ -27,7 +26,10 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         <Link href="/clients" className="w-9 h-9 rounded-xl bg-[#f7f5f0] border border-[#d6cdbc] flex items-center justify-center hover:bg-[#eee8da]">
           <ArrowLeft size={16} className="text-[#4a4540]" />
         </Link>
-        <h1 className="page-header">{c.name}</h1>
+        <h1 className="page-header flex-1 truncate">{c.name}</h1>
+        <Link href={`/clients/${params.id}/edit`} className="w-9 h-9 rounded-xl bg-[#eee8da] border border-[#d6cdbc] flex items-center justify-center hover:bg-[#d6cdbc] transition-colors">
+          <Edit size={16} className="text-[#4a4540]" />
+        </Link>
       </div>
 
       {/* Client Info */}
@@ -79,22 +81,24 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
       {/* Cases */}
       <div>
-        <h2 className="section-title mb-3">Cases ({cases?.length ?? 0})</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="section-title">Cases ({cases?.length ?? 0})</h2>
+          <Link href={`/cases/new`} className="text-xs text-[#d9a57b] font-semibold flex items-center gap-1">
+            <ChevronRight size={12} /> New Case
+          </Link>
+        </div>
         {cases?.length ? (
           <div className="space-y-2">
             {(cases as Case[]).map((cs) => (
-              <Link
-                key={cs.id}
-                href={`/cases/${cs.id}`}
-                className="card p-4 flex items-center gap-3 hover:shadow-sm transition-shadow"
-              >
+              <Link key={cs.id} href={`/cases/${cs.id}`} className="card p-4 flex items-center gap-3 hover:shadow-sm transition-shadow">
                 <div className="w-9 h-9 rounded-xl bg-[#eee8da] flex items-center justify-center flex-shrink-0">
                   <Briefcase size={14} className="text-[#4a4540]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-sm text-[#1a1814] truncate">{cs.case_name}</p>
                     <StatusBadge status={cs.status} />
+                    {cs.stage && <span className="badge bg-[#eee8da] text-[#4a4540] text-[10px]">{cs.stage}</span>}
                   </div>
                   <p className="text-xs text-[#8a8278]">{cs.case_number}</p>
                 </div>
