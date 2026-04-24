@@ -1,7 +1,18 @@
 export type CaseStatus = 'active' | 'closed' | 'pending' | 'won' | 'lost'
 export type TaskPriority = 'low' | 'medium' | 'high'
+export type TaskType = 'task' | 'meeting'
 export type TransactionType = 'payment' | 'fee' | 'expense' | 'refund'
 export type NotificationType = 'info' | 'hearing' | 'payment' | 'task' | 'alert'
+export type UserRole = 'admin' | 'staff'
+
+export interface Profile {
+  id: string
+  full_name: string | null
+  role: UserRole
+  advocate_name: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface Client {
   id: string
@@ -20,6 +31,8 @@ export interface Case {
   case_name: string
   client_id: string | null
   status: CaseStatus
+  stage: string | null
+  advocate_name: string | null
   court: string | null
   judge: string | null
   filing_date: string | null
@@ -54,6 +67,10 @@ export interface Task {
   done: boolean
   due_date: string | null
   priority: TaskPriority
+  task_type: TaskType
+  meeting_location: string | null
+  meeting_with: string | null
+  advocate_name: string | null
   created_at: string
   updated_at: string
   // joined
@@ -96,6 +113,44 @@ export interface Notification {
   created_at: string
   // joined
   case?: Case
+}
+
+export interface CaseNote {
+  id: string
+  case_id: string
+  content: string
+  author_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CaseDocument {
+  id: string
+  case_id: string
+  name: string
+  storage_path: string | null
+  url: string | null
+  tag: string | null
+  notes: string | null
+  file_size: number | null
+  created_at: string
+  // joined
+  annotations?: DocumentAnnotation[]
+}
+
+export interface DocumentAnnotation {
+  id: string
+  document_id: string
+  page_number: number
+  note: string
+  created_at: string
+}
+
+export interface FirmSettings {
+  id: string
+  key: string
+  value: string[]
+  updated_at: string
 }
 
 export interface DashboardStats {

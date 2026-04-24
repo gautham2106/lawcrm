@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
@@ -10,6 +10,20 @@ export default function NewCasePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [stages, setStages] = useState<string[]>([])
+  const [advocates, setAdvocates] = useState<string[]>([])
+
+  useEffect(() => {
+    async function loadSettings() {
+      const [{ data: stageSetting }, { data: advocateSetting }] = await Promise.all([
+        supabase.from('firm_settings').select('value').eq('key', 'case_stages').single(),
+        supabase.from('firm_settings').select('value').eq('key', 'advocates').single(),
+      ])
+      if (stageSetting?.value) setStages(stageSetting.value as string[])
+      if (advocateSetting?.value) setAdvocates(advocateSetting.value as string[])
+    }
+    loadSettings()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -21,6 +35,8 @@ export default function NewCasePage() {
       case_number: form.get('case_number') as string,
       case_name: form.get('case_name') as string,
       status: form.get('status') as string,
+      stage: form.get('stage') as string || null,
+      advocate_name: form.get('advocate_name') as string || null,
       court: form.get('court') as string || null,
       judge: form.get('judge') as string || null,
       filing_date: form.get('filing_date') as string || null,
@@ -39,7 +55,6 @@ export default function NewCasePage() {
       return
     }
 
-    // Create fee record
     const agreedAmount = parseFloat(form.get('agreed_amount') as string) || 0
     if (agreedAmount > 0) {
       await supabase.from('fees').insert({
@@ -75,16 +90,48 @@ export default function NewCasePage() {
             <input name="case_name" required className="input" placeholder="e.g. Sharma vs State" />
           </div>
 
-          <div>
-            <label className="label">Status</label>
-            <select name="status" className="input" defaultValue="active">
-              <option value="active">Active</option>
-              <option value="pending">Pending</option>
-              <option value="closed">Closed</option>
-              <option value="won">Won</option>
-              <option value="lost">Lost</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Status</label>
+              <select name="status" className="input" defaultValue="active">
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="closed">Closed</option>
+                <option value="won">Won</option>
+                <option value="lost">Lost</option>
+              </select>
+            </div>
+
+            {stages.length > 0 && (
+              <div>
+                <label className="label">Stage</label>
+                <select name="stage" className="input" defaultValue={stages[0]}>
+                  {stages.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
+
+          {advocates.length > 0 && (
+            <div>
+              <label className="label">Assigned Advocate</label>
+              <select name="advocate_name" className="input" defaultValue="">
+                <option value="">— Unassigned —</option>
+                {advocates.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {advocates.length === 0 && (
+            <div>
+              <label className="label">Assigned Advocate</label>
+              <input name="advocate_name" className="input" placeholder="e.g. Adv. Rajan Kumar" />
+            </div>
+          )}
 
           <div>
             <label className="label">Court</label>

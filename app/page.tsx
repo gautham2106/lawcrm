@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getUserProfile } from '@/lib/auth'
 import { format, isToday, isTomorrow, parseISO } from 'date-fns'
 import { Briefcase, Calendar, CheckSquare, AlertCircle, Bell, Search, ChevronRight } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
-import { Case, Hearing, Task, Fee, Notification } from '@/lib/types'
+import { Case, Hearing, Task, Fee } from '@/lib/types'
 
 function formatHearingDate(dateStr: string) {
   const d = parseISO(dateStr)
@@ -16,21 +17,26 @@ export const revalidate = 0
 
 export default async function DashboardPage() {
   const db = createServerClient()
-
+  const profile = await getUserProfile()
+  const isAdmin = profile?.role === 'admin'
   const today = new Date().toISOString().split('T')[0]
 
-  const [
-    { data: cases },
-    { data: todayHearings },
-    { data: pendingTasks },
-    { data: pendingFees },
-    { data: unreadNotifications },
-    { data: upcomingHearings },
-  ] = await Promise.all([
-    db.from('cases').select('id, status').eq('status', 'active'),
+  // Base case query — staff sees only their own cases
+  let caseQuery = db.from('cases').select('id, status').eq('status', 'active')
+  if (!isAdmin && profile?.advocate_name) {
+    caseQuery = caseQuery.eq('advocate_name', profile.advocate_name)
+  }
+
+  // Base task query — staff sees only their own tasks or tasks for their cases
+  let taskQuery = db.from('tasks').select('id').eq('done', false)
+  if (!isAdmin && profile?.advocate_name) {
+    taskQuery = taskQuery.eq('advocate_name', profile.advocate_name)
+  }
+
+  const queries: Promise<any>[] = [
+    caseQuery,
     db.from('hearings').select('*, case:cases(id, case_name, case_number)').eq('date', today).order('time'),
-    db.from('tasks').select('id').eq('done', false),
-    db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0),
+    taskQuery,
     db.from('notifications').select('id').eq('is_read', false),
     db.from('hearings')
       .select('*, case:cases(id, case_name, case_number)')
@@ -38,20 +44,47 @@ export default async function DashboardPage() {
       .order('date')
       .order('time')
       .limit(5),
-  ])
+  ]
 
-  const pendingFeesTotal = (pendingFees ?? []).reduce(
-    (sum: number, f: Fee) => sum + Math.max(0, f.agreed_amount - f.paid_amount),
+  if (isAdmin) {
+    queries.push(
+      db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0)
+    )
+  }
+
+  const results = await Promise.all(queries)
+  const [
+    { data: cases },
+    { data: todayHearings },
+    { data: pendingTasks },
+    { data: unreadNotifications },
+    { data: upcomingHearings },
+  ] = results
+  const pendingFees = isAdmin ? (results[5]?.data ?? []) : []
+
+  const pendingFeesTotal = (pendingFees as Fee[]).reduce(
+    (sum, f) => sum + Math.max(0, f.agreed_amount - f.paid_amount),
     0
   )
   const hasPendingFees = pendingFeesTotal > 0
 
   const stats = [
-    { label: 'Active Cases',    value: cases?.length ?? 0,              icon: Briefcase,   href: '/cases',    color: 'text-blue-600',   bg: 'bg-blue-50' },
-    { label: 'Today Hearings',  value: todayHearings?.length ?? 0,      icon: Calendar,    href: '/calendar', color: 'text-amber-600',  bg: 'bg-amber-50' },
-    { label: 'Pending Tasks',   value: pendingTasks?.length ?? 0,       icon: CheckSquare, href: '/tasks',    color: 'text-emerald-600',bg: 'bg-emerald-50' },
-    { label: 'Fees Due',        value: hasPendingFees ? `₹${(pendingFeesTotal/1000).toFixed(0)}k` : '—', icon: AlertCircle, href: '/fees', color: 'text-red-600', bg: 'bg-red-50' },
+    { label: 'Active Cases',   value: cases?.length ?? 0,         icon: Briefcase,   href: '/cases',    color: 'text-blue-600',   bg: 'bg-blue-50' },
+    { label: 'Today Hearings', value: todayHearings?.length ?? 0,  icon: Calendar,    href: '/calendar', color: 'text-amber-600',  bg: 'bg-amber-50' },
+    { label: 'Pending Tasks',  value: pendingTasks?.length ?? 0,   icon: CheckSquare, href: '/tasks',    color: 'text-emerald-600',bg: 'bg-emerald-50' },
+    ...(isAdmin ? [{
+      label: 'Fees Due',
+      value: hasPendingFees ? `₹${(pendingFeesTotal / 1000).toFixed(0)}k` : '—',
+      icon: AlertCircle,
+      href: '/fees',
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+    }] : []),
   ]
+
+  const greeting = profile?.full_name
+    ? `Hello, ${profile.full_name.split(' ')[0]}`
+    : 'Good morning'
 
   return (
     <div className="space-y-6">
@@ -59,7 +92,10 @@ export default async function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-[#8a8278] font-medium">{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
-          <h1 className="text-2xl font-bold text-[#1a1814] tracking-tight">Good morning</h1>
+          <h1 className="text-2xl font-bold text-[#1a1814] tracking-tight">{greeting}</h1>
+          {profile?.advocate_name && (
+            <p className="text-xs text-[#8a8278] mt-0.5">{profile.advocate_name} · {profile.role === 'admin' ? 'Senior Advocate' : 'Staff'}</p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Link href="/search" className="w-9 h-9 rounded-xl bg-[#f7f5f0] border border-[#d6cdbc] flex items-center justify-center hover:bg-[#eee8da] transition-colors">
@@ -77,7 +113,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid gap-3 ${stats.length === 4 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {stats.map(({ label, value, icon: Icon, href, color, bg }) => (
           <Link key={label} href={href} className="card p-4 hover:shadow-sm transition-shadow">
             <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-3`}>
@@ -143,9 +179,9 @@ export default async function DashboardPage() {
         <h2 className="section-title mb-3">Quick Actions</h2>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'New Case',    href: '/cases/new',    icon: Briefcase },
-            { label: 'Add Task',    href: '/tasks/new',    icon: CheckSquare },
-            { label: 'Calendar',    href: '/calendar',     icon: Calendar },
+            { label: 'New Case',  href: '/cases/new',  icon: Briefcase },
+            { label: 'Add Task',  href: '/tasks/new',  icon: CheckSquare },
+            { label: 'Calendar',  href: '/calendar',   icon: Calendar },
           ].map(({ label, href, icon: Icon }) => (
             <Link key={href} href={href} className="card p-3 flex flex-col items-center gap-2 hover:shadow-sm transition-shadow text-center">
               <div className="w-9 h-9 rounded-xl bg-[#eee8da] flex items-center justify-center">
