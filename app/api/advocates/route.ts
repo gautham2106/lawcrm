@@ -21,12 +21,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: authError.message }, { status: 400 })
   }
 
-  // Store advocate profile
+  // Store advocate profile linked to the auth user
   const { error: insertError } = await db.from('advocates').insert({
     name,
     email,
     role: role ?? 'advocate',
     phone: phone ?? null,
+    auth_user_id: authData.user.id,
   })
 
   if (insertError) {

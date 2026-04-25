@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getAuthContext } from '@/lib/auth'
 import { format, parseISO, isToday, isPast } from 'date-fns'
 import { Plus, CheckSquare } from 'lucide-react'
 import { PriorityBadge } from '@/components/ui/Badge'
@@ -16,6 +17,7 @@ export default async function TasksPage({
   searchParams: { filter?: string }
 }) {
   const db = createServerClient()
+  const { advocate, isAdmin } = await getAuthContext()
   const filter = searchParams.filter ?? 'pending'
 
   const [tasksResult, advocatesResult] = await Promise.all([
@@ -26,11 +28,19 @@ export default async function TasksPage({
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
 
+      // Non-admin advocates only see their assigned tasks
+      if (!isAdmin && advocate) {
+        query = query.eq('assigned_to', advocate.id)
+      }
+
       if (filter === 'pending') query = query.eq('done', false)
       if (filter === 'done') query = query.eq('done', true)
       return query
     })(),
-    db.from('advocates').select('id, name').order('name'),
+    // Only admins need the full advocate list for reassigning
+    isAdmin
+      ? db.from('advocates').select('id, name').order('name')
+      : Promise.resolve({ data: [] }),
   ])
 
   const tasks = tasksResult.data
@@ -67,7 +77,11 @@ export default async function TasksPage({
         <EmptyState
           icon={CheckSquare}
           title="No tasks"
-          description={filter === 'pending' ? 'All caught up!' : 'No tasks match this filter'}
+          description={
+            filter === 'pending'
+              ? isAdmin ? 'All caught up!' : 'No tasks assigned to you'
+              : 'No tasks match this filter'
+          }
           action={<Link href="/tasks/new" className="btn-primary">Add Task</Link>}
         />
       ) : (
@@ -94,14 +108,19 @@ export default async function TasksPage({
                         Due {isToday(parseISO(t.due_date)) ? 'Today' : format(parseISO(t.due_date), 'dd MMM')}
                       </span>
                     )}
-                    {advocates.length > 0 && (
+                    {/* Admins can reassign; non-admins see who is assigned */}
+                    {isAdmin && advocates.length > 0 ? (
                       <AssignSelect
                         table="tasks"
                         recordId={t.id}
                         currentAssignedTo={t.assigned_to}
                         advocates={advocates}
                       />
-                    )}
+                    ) : t.assigned_advocate ? (
+                      <span className="text-xs text-[#8a8278]">
+                        {t.assigned_advocate.name}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>

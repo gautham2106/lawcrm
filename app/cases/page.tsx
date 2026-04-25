@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getAuthContext } from '@/lib/auth'
 import { format, parseISO } from 'date-fns'
 import { Plus, Search, Briefcase, ChevronRight } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -14,12 +15,18 @@ export default async function CasesPage({
   searchParams: { status?: string; q?: string }
 }) {
   const db = createServerClient()
+  const { advocate, isAdmin } = await getAuthContext()
   const { status, q } = searchParams
 
   let query = db
     .from('cases')
     .select('*, client:clients(id, name, phone)')
     .order('created_at', { ascending: false })
+
+  // Non-admin advocates only see their assigned cases
+  if (!isAdmin && advocate) {
+    query = query.eq('assigned_to', advocate.id)
+  }
 
   if (status && status !== 'all') {
     query = query.eq('status', status)
@@ -37,10 +44,12 @@ export default async function CasesPage({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="page-header">Cases</h1>
-        <Link href="/cases/new" className="btn-primary flex items-center gap-1.5">
-          <Plus size={16} />
-          New Case
-        </Link>
+        {isAdmin && (
+          <Link href="/cases/new" className="btn-primary flex items-center gap-1.5">
+            <Plus size={16} />
+            New Case
+          </Link>
+        )}
       </div>
 
       {/* Search */}
@@ -78,11 +87,13 @@ export default async function CasesPage({
         <EmptyState
           icon={Briefcase}
           title="No cases found"
-          description="Add your first case to get started"
+          description={isAdmin ? 'Add your first case to get started' : 'No cases are assigned to you yet'}
           action={
-            <Link href="/cases/new" className="btn-primary">
-              Add Case
-            </Link>
+            isAdmin ? (
+              <Link href="/cases/new" className="btn-primary">
+                Add Case
+              </Link>
+            ) : undefined
           }
         />
       ) : (

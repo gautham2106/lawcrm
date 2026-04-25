@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createServerClient } from '@/lib/supabase'
+import { getAuthContext } from '@/lib/auth'
 import { format, isToday, isTomorrow, parseISO } from 'date-fns'
 import { Briefcase, Calendar, CheckSquare, AlertCircle, Bell, Search, ChevronRight } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -16,8 +17,18 @@ export const revalidate = 0
 
 export default async function DashboardPage() {
   const db = createServerClient()
-
+  const { advocate, isAdmin } = await getAuthContext()
   const today = new Date().toISOString().split('T')[0]
+
+  // Build case IDs filter for non-admin advocates
+  let assignedCaseIds: string[] | null = null
+  if (!isAdmin && advocate) {
+    const { data: assignedCases } = await db
+      .from('cases')
+      .select('id')
+      .eq('assigned_to', advocate.id)
+    assignedCaseIds = (assignedCases ?? []).map((c: any) => c.id)
+  }
 
   const [
     { data: cases },
@@ -27,17 +38,37 @@ export default async function DashboardPage() {
     { data: unreadNotifications },
     { data: upcomingHearings },
   ] = await Promise.all([
-    db.from('cases').select('id, status').eq('status', 'active'),
-    db.from('hearings').select('*, case:cases(id, case_name, case_number)').eq('date', today).order('time'),
-    db.from('tasks').select('id').eq('done', false),
-    db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0),
+    (() => {
+      let q = db.from('cases').select('id, status').eq('status', 'active')
+      if (!isAdmin && advocate) q = q.eq('assigned_to', advocate.id)
+      return q
+    })(),
+    (() => {
+      let q = db.from('hearings').select('*, case:cases(id, case_name, case_number)').eq('date', today).order('time')
+      if (!isAdmin && assignedCaseIds) q = q.in('case_id', assignedCaseIds.length ? assignedCaseIds : [''])
+      return q
+    })(),
+    (() => {
+      let q = db.from('tasks').select('id').eq('done', false)
+      if (!isAdmin && advocate) q = q.eq('assigned_to', advocate.id)
+      return q
+    })(),
+    (() => {
+      let q = db.from('fees').select('id, agreed_amount, paid_amount').gt('agreed_amount', 0)
+      if (!isAdmin && assignedCaseIds) q = q.in('case_id', assignedCaseIds.length ? assignedCaseIds : [''])
+      return q
+    })(),
     db.from('notifications').select('id').eq('is_read', false),
-    db.from('hearings')
-      .select('*, case:cases(id, case_name, case_number)')
-      .gte('date', today)
-      .order('date')
-      .order('time')
-      .limit(5),
+    (() => {
+      let q = db.from('hearings')
+        .select('*, case:cases(id, case_name, case_number)')
+        .gte('date', today)
+        .order('date')
+        .order('time')
+        .limit(5)
+      if (!isAdmin && assignedCaseIds) q = q.in('case_id', assignedCaseIds.length ? assignedCaseIds : [''])
+      return q
+    })(),
   ])
 
   const pendingFeesTotal = (pendingFees ?? []).reduce(
@@ -53,13 +84,20 @@ export default async function DashboardPage() {
     { label: 'Fees Due',        value: hasPendingFees ? `₹${(pendingFeesTotal/1000).toFixed(0)}k` : '—', icon: AlertCircle, href: '/fees', color: 'text-red-600', bg: 'bg-red-50' },
   ]
 
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  })()
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-[#8a8278] font-medium">{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
-          <h1 className="text-2xl font-bold text-[#1a1814] tracking-tight">Good morning</h1>
+          <h1 className="text-2xl font-bold text-[#1a1814] tracking-tight">{greeting}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/search" className="w-9 h-9 rounded-xl bg-[#f7f5f0] border border-[#d6cdbc] flex items-center justify-center hover:bg-[#eee8da] transition-colors">
