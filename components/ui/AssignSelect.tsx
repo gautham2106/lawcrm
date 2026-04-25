@@ -12,12 +12,7 @@ interface AssignSelectProps {
   advocates: Pick<Advocate, 'id' | 'name'>[]
 }
 
-export default function AssignSelect({
-  table,
-  recordId,
-  currentAssignedTo,
-  advocates,
-}: AssignSelectProps) {
+export default function AssignSelect({ table, recordId, currentAssignedTo, advocates }: AssignSelectProps) {
   const [assignedTo, setAssignedTo] = useState(currentAssignedTo)
   const [saving, setSaving] = useState(false)
 
@@ -31,12 +26,12 @@ export default function AssignSelect({
 
   return (
     <div className="flex items-center gap-1">
-      <UserCircle size={13} className={`flex-shrink-0 ${saving ? 'text-[#d9a57b]' : 'text-[#8a8278]'}`} />
+      <UserCircle size={13} className={`flex-shrink-0 ${saving ? 'text-blue-500' : 'text-slate-400'}`} />
       <select
         value={assignedTo ?? ''}
         onChange={handleChange}
         disabled={saving}
-        className="text-xs text-[#4a4540] bg-transparent border-none outline-none cursor-pointer appearance-none max-w-[130px] truncate disabled:opacity-60"
+        className="text-xs text-slate-500 bg-transparent border-none outline-none cursor-pointer appearance-none max-w-[130px] truncate disabled:opacity-60 hover:text-blue-600 transition-colors"
       >
         <option value="">Unassigned</option>
         {advocates.map((a) => (

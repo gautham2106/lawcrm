@@ -18,11 +18,7 @@ const roleLabels: Record<string, string> = {
   paralegal: 'Paralegal',
 }
 
-export default async function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let user = null
   let advocate: Pick<Advocate, 'name' | 'role'> | null = null
 
@@ -44,19 +40,24 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#e7e3d8]">
+      <body className="min-h-screen bg-slate-100">
         {user ? (
           <>
             <div className="max-w-5xl mx-auto px-4 pb-24 pt-4">
-              {/* User bar */}
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-sm font-semibold text-[#1a1814]">
-                    {advocate?.name ?? user.email}
-                  </p>
-                  <p className="text-xs text-[#8a8278]">
-                    {advocate ? (roleLabels[advocate.role] ?? advocate.role) : 'Admin'}
-                  </p>
+              {/* Top user bar */}
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                    {(advocate?.name ?? user.email ?? 'A').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900 leading-tight">
+                      {advocate?.name ?? user.email}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {advocate ? (roleLabels[advocate.role] ?? advocate.role) : 'Admin'}
+                    </p>
+                  </div>
                 </div>
                 <LogoutButton />
               </div>
