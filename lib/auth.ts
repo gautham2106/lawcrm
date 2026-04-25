@@ -1,4 +1,5 @@
-import { createSupabaseServerClient, createServerClient } from './supabase'
+import { createSupabaseServerClient } from './supabase-server'
+import { createServerClient } from './supabase'
 import { Advocate } from './types'
 
 export interface AuthContext {

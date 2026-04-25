@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 import Navbar from '@/components/layout/Navbar'
 import LogoutButton from '@/components/layout/LogoutButton'
-import { createSupabaseServerClient, createServerClient } from '@/lib/supabase'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createServerClient } from '@/lib/supabase'
 import { Advocate } from '@/lib/types'
 
 export const metadata: Metadata = {
